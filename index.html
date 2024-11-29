@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>Project1</title>
+        <meta charset="UTF-8">
+        <link rel="icon" href="icon/icon.png" type="image/png">
+        <link rel="stylesheet" type="text/css" href="fonts/gamefont.css">
+
+        <script type="text/javascript" src="js/libs/ion.sound.min.js"></script>
+        <script type="text/javascript" src="js/daziji.js"></script>
+        <script type="text/javascript" src="js/libs/jquery-3.6.3.js"></script>
+        <script type="text/javascript" src="js/libs/jquery-3.6.3.min.map"></script>
+        <script type="text/javascript" src="js/main.js"></script>
+        <style></style>
+
+    </head>
+
+    <body>
+        <!--进入游戏-->
+        <div id="speak" class="all">
+            <p id="p0" class="all">烟雾聚散，塑形天堂</p>
+            <div id="gostart" class="but">▶来力</div>
+        </div>
+
+        <!--开局动画-->
+        <div id="start" class="all">
+            <p id="p1" class="all">现在是一年中的腊月，最后的节气是大寒。今天是大寒后的第一天。你感到万物俱寂，却又如鲠在喉。</p>
+            <div id="next1" class="but">▶原来如些</div>
+
+            <p id="p2" class="all">那么问题来了小朋友，你还记得你是谁吗？</p>
+            <div id="next2" class="but">▶冲刺</div>
+
+            <!--外形-->
+            <p id="p3" class="all">选择你的外形认同：</p>
+            <div id="next3_1" class="next3 but">▶古早赛博蜻蜓
+            </div>
+            <div id="next3_2" class="next3 but">▶澳洲大袋鼠
+            </div>
+            <div id="next3_3" class="next3 but">▶水库浮游生物
+            </div>
+            <div id="next3_4" class="next3 but">▶端口输出意识体
+            </div>
+            <div id="next3_5" class="next3 but">▶三无小食品
+            </div>
+
+            <!--户口所在地-->
+            <p id="p4" class="all">选择你的户口所在地：</p>
+            <div id="next4_1" class="next4 but">▶北京七环山洞
+            </div>
+            <div id="next4_2" class="next4 but">▶东朝鲜山区
+            </div>
+            <div id="next4_3" class="next4 but">▶波士顿垃圾站
+            </div>
+            <div id="next4_4" class="next4 but">▶泛东北旧工厂
+            </div>
+            <div id="next4_5" class="next4 but">▶澳洲中央沙漠
+            </div>
+            <div id="next4_6" class="next4 but">▶军学胡同
+            </div>
+            <div id="next4_7" class="next4 but">▶东京下水道
+            </div>
+
+            <!--格式光谱学-->
+            <p id="p5" class="all">看来是这样了，那么请选择你的格式光谱：</p>
+
+            <div id="next5_1" class="next5 but">▶和谐的逆反主义
+            </div>
+            <div id="next5_2" class="next5 but">▶扭曲的远视主义
+            </div>
+            <div id="next5_3" class="next5 but">▶邪恶的进取主义
+            </div>
+            <div id="next5_4" class="next5 but">▶理想的瘫痪主义
+            </div>
+            <div id="next5_5" class="next5 but">▶苦难的热情主义
+            </div>
+            <div id="next5_6" class="next5 but">▶积极的后退主义
+            </div>
+            <div id="next5_7" class="next5 but">▶精致的随便主义
+            </div>
+            <p id="p6" class="all">雾霭弥坚，你的前方是莫测的变化。因果汇聚，始终如一的世界早已崩塌。接下来的每一天，都是新年快乐。</p>
+            <div id="next6_1" class="next6 but">▶冲水哦
+            </div>
+            <div id="next6_2" class="next6 but">▶新黏快乐
+            </div>
+
+        </div>
+        <!--主菜单-->
+        <div id="mainmenu" class="all">
+            <p id="p7" class="all">接下来做什么呢？</p>
+            <div id="gobut" class="mainin but">▶冒险</div>
+            <div id="homebut" class="mainin but">▶城镇</div>
+            <div id="bagbut" class="mainin but">▶背包</div>
+            <div id="mebut" class="mainin but">▶自己</div>
+            <div id="petbut" class="mainin but">▶宠物</div>
+        </div>
+
+        <!--冒险-->
+        <div id="go" class="all">
+            <p id="p8" class="all">今日大冲浪，要去哪里冒险呢？</p>
+            <div id="go0" class="goin but">▶国营电子林场</div>
+            <div id="go1" class="goin but">▶安国老居民区</div>
+            <div id="go2" class="goin but">▶华盛顿师大附中</div>
+            <div id="go3" class="goin but">▶核试验步行街</div>
+            <div id="go4" class="goin but">▶皮皮小子环形山</div>
+            <div id="go5" class="goin but">▶圣地亚戈政府食堂</div>
+            <div id="go6" class="goin but">▶原始宇宙公厕</div>
+            <div id="go7" class="goin but">▶安布鲁帕荒地</div>
+            <div id="go8" class="goin but">▶术缘村</div>
+            <div id="goback" class="goin but" style="color: rgb(150, 150, 150);">▶离开</div>
+        </div>
+
+        <div id="cantgo2" class="all">
+            <div id="cantgo2p1" class="all">你的等级不足2级，欢迎下次再来。</div>
+        </div>
+
+        <div id="cantgo3" class="all">
+            <div id="cantgo2p1" class="all">你的等级不足5级，欢迎下次再来。</div>
+        </div>
+
+        <div id="cantgo4" class="all">
+            <div id="cantgo2p1" class="all">你的等级不足8级，欢迎下次再来。</div>
+        </div>
+
+        <div id="cantgo5" class="all">
+            <div id="cantgo2p1" class="all">你的等级不足10级，欢迎下次再来。</div>
+        </div>
+
+        <div id="cantgo6" class="all">
+            <div id="cantgo2p1" class="all">你的等级不足12级，欢迎下次再来。</div>
+        </div>
+
+        <div id="cantgo7" class="all">
+            <div id="cantgo2p1" class="all">你的等级不足15级，欢迎下次再来。</div>
+        </div>
+
+
+
+        <div id="go1menu" class="all">
+            <div id="go1p1" class="all">正在前往安国老居民区……</div>
+            <div id="go1p2" class="all"></div>
+            <div id="go1p3" class="all">遇到了<span id="go1meetlevel"></span>级的<span id="go1meetname"></span>， 你准备做什么呢？</div>
+            <div id="go1but1" class="but go1but">▶揭开未知吧 [消耗<span id="go1meethp"></span>信息量, 成功率是<span id="go1meetmay"></span>%]</div>
+            <div id="go1but2" class="but go1but">▶逃避 [损失最多<span id="go1meetrun"></span>信息量, 离开雾霭]</div>
+            <div id="go1p4" class="all">揭示失败，你被华北的雾霾逮住。</div>
+            <div id="go1p5" class="all">揭示成功！如同宿舍的午睡，你获得了<span id="go1meetget"></span>。</div>
+            <div id="go1back" class="but" style="color: rgb(150, 150, 150);">▶离开</div>
+        </div>
+        
+        <div id="go2menu" class="all">
+            <div id="go2p1" class="all">正在前往华盛顿师大附中……</div>
+            <div id="go2p2" class="all"></div>
+            <div id="go2p3" class="all">遇到了<span id="go2meetlevel"></span>级的<span id="go2meetname"></span>， 你准备做什么呢？</div>
+            <div id="go2but1" class="all but">▶揭开未知吧 [消耗<span id="go2meethp"></span>信息量, 成功率是<span id="go2meetmay"></span>]</div>
+            <div id="go2but1" class="all but">▶逃避 [损失最多<span id="go2meetrun"></span>信息量, 离开雾霭]</div>
+            <div id="go2p4" class="all">揭示失败，你深陷迷途，无功而返。</div>
+            <div id="go2p5" class="all">揭示成功！如同亚美利加的绿卡，你获得了<span id="go2meetget"></span>。</div>
+            <div id="go2back" class="all but" style="color: rgb(150, 150, 150);">▶离开</div>
+
+        </div>
+
+        <!--城镇-->
+        <div id="home" class="all">
+            <p id="p10" class="all">欢迎你，这里是低素质人口的最后居所。</p>
+            <div id="home1" class="goin but">▶大洋村委会</div>
+            <div id="home2" class="goin but">▶环球串联神社</div>
+            <div id="home3" class="goin but">▶休斯顿矮人工坊</div>
+            <div id="home4" class="goin but">▶倒闭的养猪场</div>
+            <div id="home5" class="goin but">▶绿洲派对酒吧</div>
+            <div id="homeback" class="goin but" style="color: rgb(150, 150, 150);">▶离开</div>
+        </div>
+
+        <!--背包-->
+        <div id="bag" class="all">
+            <p id="p9" class="all" style="color: rgb(150, 150, 150);">你好包包！点击物品查看详情。</p>
+            <p id="bagback" class="but" style="color: rgb(150, 150, 150);">▶合上背包</p>
+        </div>
+
+        <!--自己-->
+        <div id="statu" class="all">
+            <p class="all">你当前的身份是<span id="ident"></span>。<br/>
+                你的等级为<span id="level" style="color: rgb(123, 42, 42)"></span>级。 <br/>
+                你属于<span id="modey"></span>的一份子。<br/>
+                你的家乡是<span id="place"></span>。<br/>
+                你目前正在支持<span id="mood"></span>运动。<br/>
+                你已经获得<span id="godnum"></span>位神祇的赞许。<br/>
+                你目前拥有<span id="power" style="color: rgb(123, 42, 42)"></span>的信息量。 </p>
+            <p id="meback" class="but" style="color: rgb(150, 150, 150);">▶返回</p>
+        </div>
+
+    </body>
+</html>
