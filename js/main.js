@@ -181,26 +181,28 @@
   function calcPlayerStats() {
     const cfg = GAME_DATA.CLASS_CONFIG[state.playerClass] || GAME_DATA.CLASS_CONFIG['剑士'];
     const base = cfg.base_stats;
-    // Scale stats with level
-    const lvlMult = 1 + (state.level - 1) * 0.12;
+    // Scale stats with level — aligned to monster JSON HP values
+    // Monster Lv1 HP ~30-100, Lv35 ~2000-2700, Lv80 ~10000-17000
+    // Player HP should be in the same ballpark so fights last 3-8 turns
+    const lv = state.level;
     let stats = {
-      hp:    Math.floor(base.hp  * lvlMult * 100),
-      atk:   Math.floor(base.atk * lvlMult * 100),
-      def:   Math.floor(base.def * lvlMult * 100),
+      hp:    Math.floor((base.hp  * 3) * (1 + (lv - 1) * 0.15)),
+      atk:   Math.floor((base.atk * 3) * (1 + (lv - 1) * 0.14)),
+      def:   Math.floor((base.def * 2) * (1 + (lv - 1) * 0.12)),
       spd:   base.spd,
       crit:  5,
       acc:   90,
       eva:   5,
     };
-    // Add equipment bonuses
+    // Add equipment bonuses (from JSON base_stats, used directly)
     for (const slot of Object.keys(state.equipment)) {
       const itemId = state.equipment[slot];
       if (!itemId) continue;
       const weapon = GAME_DATA.getWeaponById(itemId);
       if (weapon) {
         const bs = weapon.base_stats || {};
-        stats.atk  += (bs.attack_power  || 0);
-        stats.spd  += (bs.attack_speed  || 0);
+        stats.atk  += (bs.attack_power   || 0);
+        stats.spd  += (bs.attack_speed   || 0);
         stats.crit += (bs.critical_strike || 0);
         stats.acc  += (bs.accuracy       || 0);
         stats.eva  += (bs.evasion        || 0);
@@ -208,10 +210,10 @@
       const armor = GAME_DATA.getArmorById(itemId);
       if (armor) {
         const bs = armor.base_stats || {};
-        stats.def  += (bs.defense_power   || 0);
-        stats.spd  += (bs.attack_speed    || 0);
-        stats.eva  += (bs.evasion         || 0);
-        stats.acc  += (bs.accuracy        || 0);
+        stats.def  += (bs.defense_power  || 0);
+        stats.spd  += (bs.attack_speed   || 0);
+        stats.eva  += (bs.evasion        || 0);
+        stats.acc  += (bs.accuracy       || 0);
       }
     }
     return stats;

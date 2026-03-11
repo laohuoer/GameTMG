@@ -1,6 +1,6 @@
 /**
  * battle.js - 咕咕大冒险 回合制战斗系统
- * 核心逻辑：选敌、攻击/技能/道具/防御、敌人AI回合、战利品掉落
+ * 核心逻辑：选敌、攻击/道具/防御、敌人AI回合、战利品掉落
  */
 
 (function() {
@@ -10,14 +10,12 @@
   let battle = null;  // current battle session
 
   /* ===================== MONSTER EMOJIS ===================== */
-  // Map monster attributes/names to emojis for visual representation
   function getMonsterEmoji(monster) {
     const attrEmojis = {
       '水': '💧', '火': '🔥', '木': '🌿', '金': '⚡',
       '土': '🪨', '暗': '💀', '光': '✨', '物理': '⚔️',
       '魔法': '🔮', '无': '👾', '-': '👺',
     };
-    // Name-based overrides
     const name = monster.name || '';
     if (name.includes('稻草人') || name.includes('人偶')) return '🪆';
     if (name.includes('青蛙') || name.includes('蛙')) return '🐸';
@@ -34,38 +32,35 @@
     if (name.includes('法师') || name.includes('巫师') || name.includes('魔导')) return '🧙';
     if (name.includes('僵尸') || name.includes('骷髅') || name.includes('幽灵')) return '💀';
     if (name.includes('精灵') || name.includes('妖精')) return '🧚';
-    if (name.includes('树') || name.includes('木') && monster.attribute === '木') return '🌳';
+    if (name.includes('树') || (name.includes('木') && monster.attribute === '木')) return '🌳';
     if (name.includes('石') || name.includes('岩')) return '🪨';
     if (name.includes('冰') || name.includes('雪')) return '❄️';
     if (name.includes('火') || monster.attribute === '火') return '🔥';
     if (name.includes('暗') || monster.attribute === '暗') return '👹';
     if (name.includes('噜啦')) return '👾';
     if (name.includes('咕咕')) return '🐓';
-    if (name.includes('哈比') || name.includes('精灵')) return '🧝';
+    if (name.includes('哈比')) return '🧝';
     return attrEmojis[monster.attribute] || '👹';
   }
 
   /* ===================== SCALING ===================== */
-  // Scale monster HP for playability (raw HP in millions is too high)
-  function scaleMonsterStats(monster, playerLevel) {
-    const playerStats = GameCore.calcPlayerStats();
-    // Scale enemy HP to be ~3-8 turns of player damage
-    const avgDmg = Math.max(playerStats.atk - monster.defense, 10);
-    const targetHp = avgDmg * (4 + Math.random() * 4);
-    const scaledHp = Math.max(targetHp, playerStats.hp * 0.3);
+  // Use monster JSON HP directly as display HP (values are already human-readable).
+  // Special case: monster_001 (哈比稻草人) has abnormally high HP — cap it.
+  function scaleMonsterStats(monster) {
+    // HP: use raw JSON value, cap outlier at 500 for Lv1 context
+    const rawHp = (monster.hp && monster.hp > 100000)
+      ? Math.floor(monster.hp / 10000)   // outlier like 7,000,000 → 700
+      : (monster.hp || 50);
 
-    // Scale monster attack to do 10-25% of player max HP per hit
-    const scaledAtk = Math.max(
-      Math.floor(playerStats.hp * (0.10 + Math.random() * 0.15)),
-      1
-    );
-    const scaledDef = Math.max(Math.floor(playerStats.def * 0.3), 0);
+    // ATK and DEF: use raw JSON values directly (they're already in sensible range)
+    const rawAtk = monster.attack_power || (monster.level * 10);
+    const rawDef = monster.defense || 0;
 
     return {
       ...monster,
-      scaledHp:  Math.floor(scaledHp),
-      scaledAtk: scaledAtk,
-      scaledDef: scaledDef,
+      scaledHp:  Math.max(rawHp, 1),
+      scaledAtk: Math.max(rawAtk, 1),
+      scaledDef: rawDef,
       emoji:     getMonsterEmoji(monster),
     };
   }
@@ -81,56 +76,55 @@
       return;
     }
 
-    // Pick 1-3 random monsters from region pool
-    const count = 1 + Math.floor(Math.random() * Math.min(3, allMons.length));
+    // Pick 2-3 random monsters (guaranteed multi-enemy encounter)
+    const maxCount = Math.min(3, allMons.length);
+    const minCount = Math.min(2, allMons.length);
+    const count    = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+
     const shuffled = [...allMons].sort(() => Math.random() - 0.5);
-    const picked = shuffled.slice(0, count);
+    const picked   = shuffled.slice(0, count);
 
     const playerStats = GameCore.calcPlayerStats();
 
-    // Initialize enemies with scaled stats
+    // Initialize enemies with JSON-referenced stats
     const enemies = picked.map(m => {
-      const scaled = scaleMonsterStats(m, state.level);
+      const scaled = scaleMonsterStats(m);
       return {
-        id:      m.id,
-        name:    m.name,
-        level:   m.level,
-        emoji:   scaled.emoji,
-        attr:    m.attribute,
-        maxHp:   scaled.scaledHp,
-        hp:      scaled.scaledHp,
-        atk:     scaled.scaledAtk,
-        def:     scaled.scaledDef,
-        exp:     m.exp,
-        gold:    Math.floor(m.level * (2 + Math.random() * 3)),
-        drops:   m.drops || {},
+        id:       m.id,
+        name:     m.name,
+        level:    m.level,
+        emoji:    scaled.emoji,
+        attr:     m.attribute,
+        maxHp:    scaled.scaledHp,
+        hp:       scaled.scaledHp,
+        atk:      scaled.scaledAtk,
+        def:      scaled.scaledDef,
+        exp:      m.exp,
+        gold:     Math.floor(m.level * (2 + Math.random() * 3)),
+        drops:    m.drops || {},
         defeated: false,
         isDefending: false,
       };
     });
 
-    // Initialize battle state
+    // Initialize battle state (no MP/skill system)
     battle = {
       regionId,
-      regionName:  region.name,
+      regionName:      region.name,
       enemies,
-      playerMaxHp: playerStats.hp,
-      playerHp:    playerStats.hp,
-      playerMaxMp: 50 + state.level * 5,
-      playerMp:    50 + state.level * 5,
+      playerMaxHp:     playerStats.hp,
+      playerHp:        playerStats.hp,
       playerStats,
       playerDefending: false,
-      selectedEnemy:  0,
-      turn:           1,
-      phase:          'player',  // 'player' | 'enemy' | 'over'
-      log:            [],
+      selectedEnemy:   0,
+      turn:            1,
+      phase:           'player',  // 'player' | 'enemy' | 'over'
+      log:             [],
     };
 
-    // Navigate to battle page
     GameCore.navigateTo('battle');
-    // Hack: battle is not in onPageEnter, manual init
     renderBattle();
-    addLog(`⚔️ 进入 ${region.name}，遭遇了 ${enemies.map(e=>e.name).join('、')}！`, 'system-msg');
+    addLog(`⚔️ 进入 ${region.name}，遭遇了 ${enemies.map(e => e.name).join('、')}！`, 'system-msg');
     addLog('你的回合！选择行动。', 'system-msg');
   }
 
@@ -141,7 +135,6 @@
     document.getElementById('battle-map-name').textContent = battle.regionName;
     document.getElementById('battle-turn').textContent = battle.turn;
 
-    // Player info
     const state = GameCore.getState();
     const cfg   = GAME_DATA.CLASS_CONFIG[state.playerClass] || {};
     document.getElementById('battle-player-name').textContent  = state.playerName;
@@ -156,13 +149,9 @@
   function updatePlayerBars() {
     if (!battle) return;
     const hpPct = Math.max(0, (battle.playerHp / battle.playerMaxHp) * 100);
-    const mpPct = Math.max(0, (battle.playerMp / battle.playerMaxMp) * 100);
-    document.getElementById('battle-hp-bar').style.width = hpPct + '%';
-    document.getElementById('battle-mp-bar').style.width = mpPct + '%';
+    document.getElementById('battle-hp-bar').style.width  = hpPct + '%';
     document.getElementById('battle-hp-text').textContent =
-      `${Math.max(0,Math.floor(battle.playerHp))}/${battle.playerMaxHp}`;
-    document.getElementById('battle-mp-text').textContent =
-      `${Math.floor(battle.playerMp)}/${battle.playerMaxMp}`;
+      `${Math.max(0, Math.floor(battle.playerHp))}/${battle.playerMaxHp}`;
   }
 
   function renderEnemies() {
@@ -189,7 +178,7 @@
         <div class="enemy-hp-bar-wrap">
           <div class="enemy-hp-bar" style="width:${hpPct}%"></div>
         </div>
-        <div class="enemy-hp-text">${Math.max(0,Math.floor(enemy.hp))} HP</div>
+        <div class="enemy-hp-text">${Math.max(0, Math.floor(enemy.hp))} HP</div>
       `;
 
       if (!enemy.defeated) {
@@ -205,8 +194,9 @@
 
   function updateActionButtons() {
     const isPlayerTurn = battle && battle.phase === 'player';
-    ['btn-attack','btn-skill','btn-item','btn-defend'].forEach(id => {
-      document.getElementById(id).disabled = !isPlayerTurn;
+    ['btn-attack', 'btn-item', 'btn-defend'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !isPlayerTurn;
     });
   }
 
@@ -217,7 +207,6 @@
     entry.className = 'battle-log-entry ' + type;
     entry.textContent = msg;
     inner.insertBefore(entry, inner.firstChild);
-    // Keep log at max 30 entries
     while (inner.children.length > 30) inner.removeChild(inner.lastChild);
   }
 
@@ -227,7 +216,7 @@
     if (!cards[enemyIdx]) return;
     const popup = document.createElement('div');
     popup.className = 'dmg-popup ' + (type === 'heal' ? 'heal' : type === 'miss' ? 'miss' : type === 'crit' ? 'crit' : '');
-    popup.textContent = type === 'miss' ? 'MISS' : (type === 'heal' ? '+'+amount : '-'+amount);
+    popup.textContent = type === 'miss' ? 'MISS' : (type === 'heal' ? '+' + amount : '-' + amount);
     cards[enemyIdx].style.position = 'relative';
     cards[enemyIdx].appendChild(popup);
     setTimeout(() => popup.remove(), 800);
@@ -235,11 +224,9 @@
 
   /* ===================== PLAYER ACTIONS ===================== */
   function getTargetEnemy() {
-    // Return selected enemy, skip defeated ones
     if (battle.enemies[battle.selectedEnemy] && !battle.enemies[battle.selectedEnemy].defeated) {
       return battle.selectedEnemy;
     }
-    // Find first alive enemy
     const idx = battle.enemies.findIndex(e => !e.defeated);
     if (idx !== -1) battle.selectedEnemy = idx;
     return idx;
@@ -254,7 +241,7 @@
     const enemy = battle.enemies[targetIdx];
     const ps    = battle.playerStats;
 
-    // Hit check (accuracy vs evasion)
+    // Hit check
     const hitChance = Math.min(95, Math.max(30, (ps.acc || 90) - 5));
     if (Math.random() * 100 > hitChance) {
       addLog(`你攻击了 ${enemy.name}，但没有命中！`, 'player-action');
@@ -263,7 +250,7 @@
       return;
     }
 
-    // Calc damage
+    // Damage = player ATK - enemy DEF (min 1)
     let dmg = Math.max(1, ps.atk - enemy.def);
     dmg = Math.floor(dmg * (0.85 + Math.random() * 0.3));
 
@@ -278,7 +265,6 @@
     addLog(`${isCrit ? '💥 暴击！' : ''}你对 ${enemy.name} 造成了 ${dmg} 点伤害！`, 'player-action');
     showDamagePopup(targetIdx, dmg, dmgType);
 
-    // Shake animation
     const cards = document.getElementById('battle-enemy-area').querySelectorAll('.enemy-card');
     if (cards[targetIdx]) {
       cards[targetIdx].classList.add('taking-damage');
@@ -287,61 +273,6 @@
 
     checkEnemyDefeated(targetIdx);
     renderEnemies();
-    endPlayerTurn();
-  }
-
-  function playerSkill() {
-    if (battle.phase !== 'player') return;
-    const state  = GameCore.getState();
-    const cfg    = GAME_DATA.CLASS_CONFIG[state.playerClass] || {};
-    const mpCost = 15;
-
-    if (battle.playerMp < mpCost) {
-      GameCore.showToast('MP不足！', 'warning');
-      return;
-    }
-
-    battle.playerMp -= mpCost;
-    battle.playerDefending = false;
-
-    const targetIdx = getTargetEnemy();
-    if (targetIdx === -1) return;
-    const enemy = battle.enemies[targetIdx];
-    const ps    = battle.playerStats;
-
-    // Skill multiplier by class
-    const classMultipliers = {
-      '剑士': 1.6, '骑士': 1.3, '小丑': 2.0, '祭司': 0.8,
-      '法师': 2.2, '猎人': 1.8, '铁匠': 1.4, '饕客': 1.2,
-    };
-    const mult = classMultipliers[state.playerClass] || 1.5;
-
-    let dmg = Math.max(1, Math.floor((ps.atk - enemy.def) * mult * (0.9 + Math.random() * 0.2)));
-
-    // 祭司 skill: heal instead of damage
-    if (state.playerClass === '祭司') {
-      const healAmt = Math.floor(ps.hp * 0.25 * (0.8 + Math.random() * 0.4));
-      battle.playerHp = Math.min(battle.playerMaxHp, battle.playerHp + healAmt);
-      addLog(`✨ 神圣治愈！恢复了 ${healAmt} HP！`, 'player-action');
-      updatePlayerBars();
-      endPlayerTurn();
-      return;
-    }
-
-    enemy.hp -= dmg;
-
-    const skillNames = {
-      '剑士': '剑气斩', '骑士': '圣盾突击', '小丑': '致命背刺',
-      '法师': '奥术爆发', '猎人': '穿心箭', '铁匠': '铁锤重击',
-      '饕客': '饕餮之力',
-    };
-    const skillName = skillNames[state.playerClass] || '必杀技';
-    addLog(`✨ ${skillName}！对 ${enemy.name} 造成了 ${dmg} 点伤害！`, 'player-action');
-    showDamagePopup(targetIdx, dmg, 'crit');
-
-    checkEnemyDefeated(targetIdx);
-    renderEnemies();
-    updatePlayerBars();
     endPlayerTurn();
   }
 
@@ -392,25 +323,14 @@
     if (battle.phase !== 'player') return;
     battle.playerDefending = false;
 
-    // Determine item effect based on name keywords
     const name = item.name || '';
     let healed = 0;
 
     if (name.includes('红药水') || name.includes('鸡蛋') || name.includes('熊胆') || name.includes('肝')) {
       healed = Math.floor(battle.playerMaxHp * (name.includes('大') ? 0.40 : 0.20));
-    } else if (name.includes('蓝药水') || name.includes('豌豆') || name.includes('豆奶')) {
-      // MP restore
-      const mpRestore = Math.floor(battle.playerMaxMp * (name.includes('大') ? 0.50 : 0.30));
-      battle.playerMp = Math.min(battle.playerMaxMp, battle.playerMp + mpRestore);
-      addLog(`🧪 使用了 ${name}，恢复了 ${mpRestore} MP！`, 'player-action');
-      GameCore.removeItemFromInventory(item.id, 1);
-      updatePlayerBars();
-      endPlayerTurn();
-      return;
     } else if (name.includes('香菇') || name.includes('萝卜') || name.includes('面粉') || name.includes('海苔')) {
       healed = Math.floor(battle.playerMaxHp * 0.15);
     } else {
-      // Generic: small heal
       healed = Math.floor(battle.playerMaxHp * 0.10);
     }
 
@@ -442,12 +362,10 @@
   /* ===================== TURN MANAGEMENT ===================== */
   function endPlayerTurn() {
     updateActionButtons();
-    // Check if all enemies defeated
     if (battle.enemies.every(e => e.defeated)) {
       setTimeout(handleVictory, 400);
       return;
     }
-    // Enemy turn
     battle.phase = 'enemy';
     updateActionButtons();
     setTimeout(enemyTurn, 800);
@@ -462,17 +380,15 @@
       if (enemy.defeated) return;
       enemy.isDefending = false;
 
-      // Enemy AI: 90% attack, 10% skip
       if (Math.random() < 0.1) {
         addLog(`${enemy.name} 在蓄力中...`, 'enemy-action');
         return;
       }
 
-      // Calc damage to player
-      let dmg = Math.max(1, enemy.atk - (battle.playerStats.def * 0.3));
+      // Enemy damage to player (monster ATK directly, minus a fraction of player DEF)
+      let dmg = Math.max(1, enemy.atk - Math.floor(battle.playerStats.def * 0.5));
       dmg = Math.floor(dmg * (0.8 + Math.random() * 0.4));
 
-      // Player defending
       if (battle.playerDefending) {
         dmg = Math.floor(dmg * 0.6);
       }
@@ -484,7 +400,6 @@
     battle.playerDefending = false;
     updatePlayerBars();
 
-    // Check defeat
     if (battle.playerHp <= 0) {
       battle.playerHp = 0;
       updatePlayerBars();
@@ -492,7 +407,6 @@
       return;
     }
 
-    // Back to player turn
     battle.phase = 'player';
     updateActionButtons();
     addLog('你的回合！', 'system-msg');
@@ -507,33 +421,32 @@
     let totalExp  = 0;
     let totalGold = 0;
     const drops   = [];
-    const newItems = [];
+    const newCodex = [];
 
-    // Collect exp, gold, drops from all defeated enemies
     battle.enemies.forEach(enemy => {
-      totalExp  += enemy.exp * 100;
+      totalExp  += enemy.exp;
       totalGold += enemy.gold;
 
-      // Record monster defeat
+      // Codex: record first-time defeat
       if (!state.defeatedMonsters.includes(enemy.id)) {
         state.defeatedMonsters.push(enemy.id);
-        newItems.push({ type: 'codex', name: enemy.name });
+        newCodex.push(enemy.name);
       }
       state.totalKills = (state.totalKills || 0) + 1;
 
-      // Roll drops
-      const rolledDrops = GAME_DATA.rollDrops(GAME_DATA.getMonsterById(enemy.id) || enemy);
+      // Roll drops from monster JSON
+      const monsterData = GAME_DATA.getMonsterById(enemy.id) || enemy;
+      const rolledDrops = GAME_DATA.rollDrops(monsterData);
       rolledDrops.forEach(d => {
         drops.push(d);
         if (d.armorData) {
-          const added = GameCore.addItemToInventory({
+          GameCore.addItemToInventory({
             id:    d.armorData.id,
             name:  d.armorData.name,
             type:  'armor',
             emoji: '🛡️',
             data:  d.armorData,
           });
-          if (added) newItems.push({ type: 'armor', name: d.armorData.name });
         } else if (d.itemData) {
           GameCore.addItemToInventory({
             id:    d.itemData.id,
@@ -546,21 +459,18 @@
       });
     });
 
-    // Add weapon drop chance (5% per enemy)
+    // 5% chance per enemy to drop a level-appropriate weapon
     battle.enemies.forEach(enemy => {
       if (Math.random() < 0.05) {
         const classWeapons = GAME_DATA.getEquippableWeapons(state.playerClass);
-        const levelAppropriate = classWeapons.filter(w => Math.abs(w.required_level - state.level) <= 5);
+        const levelAppropriate = classWeapons.filter(w => Math.abs((w.required_level || 1) - state.level) <= 5);
         const pool = levelAppropriate.length ? levelAppropriate : classWeapons;
         if (pool.length) {
           const w = pool[Math.floor(Math.random() * pool.length)];
           const added = GameCore.addItemToInventory({
             id: w.id, name: w.name, type: 'weapon', emoji: '⚔️', data: w,
           });
-          if (added) {
-            drops.push({ name: w.name, isWeapon: true });
-            newItems.push({ type: 'weapon', name: w.name });
-          }
+          if (added) drops.push({ name: w.name });
         }
       }
     });
@@ -569,13 +479,17 @@
     GameCore.addGold(totalGold);
     GameCore.updateHUD();
 
+    // Codex new unlock notification
+    if (newCodex.length > 0) {
+      GameCore.showToast(`📖 图鉴解锁：${newCodex.join('、')}`, 'success', 3500);
+    }
+
     // Build result overlay
     const resultDropsEl = document.getElementById('battle-result-drops');
     resultDropsEl.innerHTML = '';
-
     drops.slice(0, 10).forEach(d => {
       const tag = document.createElement('div');
-      tag.className = 'result-drop-tag' + (newItems.find(n => n.name === d.name) ? ' new' : '');
+      tag.className = 'result-drop-tag';
       tag.textContent = d.name;
       resultDropsEl.appendChild(tag);
     });
@@ -586,9 +500,9 @@
       resultDropsEl.appendChild(tag);
     }
 
-    document.getElementById('battle-result-icon').textContent = '🏆';
+    document.getElementById('battle-result-icon').textContent  = '🏆';
     document.getElementById('battle-result-title').textContent = '战斗胜利！';
-    document.getElementById('battle-result-desc').textContent =
+    document.getElementById('battle-result-desc').textContent  =
       `获得 ${totalExp} EXP  🪙 ${totalGold} 金币`;
     document.getElementById('battle-result').classList.remove('hidden');
 
@@ -599,14 +513,38 @@
     battle.phase = 'over';
     updateActionButtons();
 
-    document.getElementById('battle-result-icon').textContent = '💀';
-    document.getElementById('battle-result-title').textContent = '战斗失败！';
-    document.getElementById('battle-result-desc').textContent = '你被击倒了，但获得了一些经验。';
-    document.getElementById('battle-result-drops').innerHTML = '';
+    const state = GameCore.getState();
 
-    // Consolation exp
-    const consolationExp = battle.enemies.reduce((s,e) => s + e.exp * 20, 0);
+    // Consolation rewards: 30% of victory EXP + small gold
+    const consolationExp  = Math.max(1, Math.floor(
+      battle.enemies.reduce((s, e) => s + e.exp, 0) * 0.30
+    ));
+    const consolationGold = Math.max(1, Math.floor(
+      battle.enemies.reduce((s, e) => s + e.gold, 0) * 0.20
+    ));
+
+    // Still record codex on defeat (you encountered them)
+    const newCodex = [];
+    battle.enemies.forEach(enemy => {
+      if (!state.defeatedMonsters.includes(enemy.id)) {
+        state.defeatedMonsters.push(enemy.id);
+        newCodex.push(enemy.name);
+      }
+    });
+
     GameCore.addExp(consolationExp);
+    GameCore.addGold(consolationGold);
+    GameCore.updateHUD();
+
+    if (newCodex.length > 0) {
+      GameCore.showToast(`📖 图鉴解锁：${newCodex.join('、')}`, 'info', 3500);
+    }
+
+    document.getElementById('battle-result-icon').textContent  = '💀';
+    document.getElementById('battle-result-title').textContent = '战斗失败！';
+    document.getElementById('battle-result-desc').textContent  =
+      `虽然落败，仍获得 ${consolationExp} EXP  🪙 ${consolationGold} 金币`;
+    document.getElementById('battle-result-drops').innerHTML = '';
 
     document.getElementById('battle-result').classList.remove('hidden');
     addLog('💀 你被击倒了...', 'defeat');
@@ -615,7 +553,6 @@
   /* ===================== INIT / BIND ===================== */
   function init() {
     document.getElementById('btn-attack').addEventListener('click', playerAttack);
-    document.getElementById('btn-skill').addEventListener('click', playerSkill);
     document.getElementById('btn-item').addEventListener('click', playerItem);
     document.getElementById('btn-defend').addEventListener('click', playerDefend);
 
