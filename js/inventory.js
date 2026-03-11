@@ -1,213 +1,233 @@
 /**
- * inventory.js — 背包系统：道具展示、过滤、分解、详情弹窗
+ * inventory.js - 咕咕大冒险 背包系统
  */
 
 (function() {
   'use strict';
 
-  const { RARITY, CLASS_CONFIG } = GAME_DATA;
   let currentFilter = 'all';
-  let selectedItemId = null;
 
   /* ===================== RENDER ===================== */
   function render() {
     const state = GameCore.getState();
     const inv   = state.inventory;
 
-    // Update stats
-    document.getElementById('inv-count').textContent = inv.length;
-    document.getElementById('inv-max').textContent   = state.inventoryMax;
+    document.getElementById('inv-count').textContent =
+      `${inv.length}/${state.inventoryMax}`;
 
-    // Filter
-    let items = inv;
-    if (currentFilter !== 'all') {
-      items = inv.filter(i => i.type === currentFilter);
-    }
-
-    // Sort: rarity desc, then name
-    const rarOrder = { legendary:0, epic:1, rare:2, common:3 };
-    items = [...items].sort((a,b) => {
-      if (rarOrder[a.rarity] !== rarOrder[b.rarity]) return rarOrder[a.rarity] - rarOrder[b.rarity];
-      return a.name.localeCompare(b.name);
-    });
+    const filtered = currentFilter === 'all'
+      ? inv
+      : inv.filter(i => i.type === currentFilter);
 
     const grid = document.getElementById('inv-grid');
     grid.innerHTML = '';
 
-    if (items.length === 0) {
-      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:40px 0;font-size:0.85rem;">暂无道具</div>`;
+    if (filtered.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = currentFilter === 'all'
+        ? '背包是空的，去冒险获取道具吧！'
+        : `没有${filterLabel(currentFilter)}`;
+      grid.appendChild(empty);
       return;
     }
 
-    items.forEach(item => {
-      const card = document.createElement('div');
-      card.className = `item-card ${item.rarity}`;
-      card.dataset.id = item.id;
-      card.innerHTML = `
-        <span class="item-card-emoji">${item.emoji}</span>
-        <div class="item-card-name">${item.name}</div>
-        ${(item.count||1) > 1 ? `<span class="item-count-badge">×${item.count}</span>` : ''}
-        <div class="item-card-rarity-bar ${item.rarity}"></div>
+    filtered.forEach(item => {
+      const isEquipped = isItemEquipped(item, state);
+      const el = document.createElement('div');
+      el.className = `inv-item ${item.type || 'item'} ${isEquipped ? 'equipped' : ''}`;
+
+      el.innerHTML = `
+        <span class="inv-item-emoji">${item.emoji || '📦'}</span>
+        <div class="inv-item-name">${item.name}</div>
+        ${(item.count > 1) ? `<span class="inv-item-count">x${item.count}</span>` : ''}
       `;
-      card.addEventListener('click', () => showItemDetail(item.id));
-      grid.appendChild(card);
+
+      el.addEventListener('click', () => showItemDetail(item, state));
+      grid.appendChild(el);
     });
   }
 
-  /* ===================== ITEM DETAIL ===================== */
-  function showItemDetail(itemId) {
-    selectedItemId = itemId;
-    const state = GameCore.getState();
-    const item  = state.inventory.find(i => i.id === itemId);
-    if (!item) return;
+  function filterLabel(f) {
+    return { weapon:'武器', armor:'防具', item:'道具' }[f] || f;
+  }
 
-    const modal   = document.getElementById('item-detail-modal');
-    const content = document.getElementById('item-detail-content');
-    const btnEquip   = document.getElementById('btn-item-equip');
-    const btnDiscard = document.getElementById('btn-item-discard');
+  function isItemEquipped(item, state) {
+    return Object.values(state.equipment).includes(item.id);
+  }
 
-    const rarData = RARITY[item.rarity];
-    const typeLabels = { hero:'英雄', weapon:'武器', mount:'坐骑', pet:'宠物' };
+  /* ===================== ITEM DETAIL MODAL ===================== */
+  function showItemDetail(item, state) {
+    const modal   = document.getElementById('item-modal');
+    const content = document.getElementById('item-modal-content');
+    const actions = document.getElementById('item-modal-actions');
 
-    // Class requirement
-    let classReqHtml = '';
-    if (item.class_req) {
-      const classNames = item.class_req.map(c => CLASS_CONFIG[c]?.label || c).join('、');
-      classReqHtml = `<div class="item-detail-req">职业限制：<span style="color:var(--text-gold)">${classNames}</span></div>`;
-    }
-    if (item.class) {
-      const cls = CLASS_CONFIG[item.class];
-      classReqHtml = `<div class="item-detail-req">职业：<span style="color:${cls?.color || '#fff'}">${cls?.icon || ''} ${cls?.label || item.class}</span></div>`;
-    }
+    const equipped = isItemEquipped(item, state);
 
-    // Stats
-    const statLabels = { hp:'生命值', atk:'攻击力', def:'防御力', spd:'速度', heal:'治疗量' };
     let statsHtml = '';
-    if (item.stats) {
+    const data = item.data;
+    if (data && data.base_stats) {
+      const statLabels = {
+        attack_power:    '攻击力',
+        attack_speed:    '攻速',
+        critical_strike: '暴击率',
+        accuracy:        '命中',
+        magic_power:     '魔法攻击',
+        evasion:         '回避',
+        defense_power:   '防御力',
+      };
       statsHtml = '<div class="item-detail-stats">';
-      for (const [k,v] of Object.entries(item.stats)) {
-        if (v) statsHtml += `<div class="stat-row"><span class="stat-label">${statLabels[k]||k}</span><span class="stat-value">${v}</span></div>`;
+      for (const [k, v] of Object.entries(data.base_stats)) {
+        if (v !== 0) {
+          const sign = v > 0 ? '+' : '';
+          statsHtml += `
+            <div class="stat-row">
+              <span class="stat-label">${statLabels[k] || k}</span>
+              <span class="stat-value ${v > 0 ? 'positive' : 'negative'}">${sign}${v}</span>
+            </div>`;
+        }
       }
       statsHtml += '</div>';
     }
 
+    let typeLabel = { weapon: '武器', armor: '防具', item: '道具' }[item.type] || '物品';
+    let subtypeLabel = '';
+    if (data) {
+      if (data.category) subtypeLabel = data.category;
+      else if (data.slot) subtypeLabel = data.slot;
+    }
+
+    let levelReq = '';
+    if (data && data.required_level) {
+      levelReq = `<div class="item-detail-type">需要等级：${data.required_level}</div>`;
+    }
+    let classReq = '';
+    if (data && data.required_class) {
+      classReq = `<div class="item-detail-class">职业限制：${data.required_class}</div>`;
+    } else if (data && data.class && data.class !== '全职业') {
+      classReq = `<div class="item-detail-class">职业限制：${data.class}</div>`;
+    }
+
     content.innerHTML = `
       <div class="item-detail-header">
-        <div class="item-detail-emoji">${item.emoji}</div>
+        <div class="item-detail-emoji">${item.emoji || '📦'}</div>
         <div class="item-detail-info">
-          <h3 style="color:${rarData.color}">${item.name}</h3>
-          <div class="item-detail-rarity" style="color:${rarData.color}">${rarData.symbol} ${rarData.label}</div>
-          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px">${typeLabels[item.type]||item.type}</div>
+          <h3>${item.name}</h3>
+          <div class="item-detail-type">${typeLabel}${subtypeLabel ? ' · ' + subtypeLabel : ''}</div>
+          ${levelReq}
+          ${classReq}
+          ${equipped ? '<div style="font-size:0.7rem;color:var(--accent-green);margin-top:4px">✓ 已装备</div>' : ''}
         </div>
       </div>
-      <p class="item-detail-desc">"${item.description}"</p>
-      ${classReqHtml}
+      ${data && data.description ? `<p class="item-detail-desc">${data.description}</p>` : ''}
       ${statsHtml}
-      ${(item.count||1)>1 ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:8px">持有数量：×${item.count}</div>` : ''}
     `;
 
-    // Equip button logic
-    if (item.type === 'hero') {
-      btnEquip.textContent = '查看角色';
-      btnEquip.style.display = 'block';
-    } else if (item.type === 'weapon' || item.type === 'mount' || item.type === 'pet') {
-      btnEquip.textContent = '装备';
-      btnEquip.style.display = 'block';
-    } else {
-      btnEquip.style.display = 'none';
+    // Actions
+    actions.innerHTML = '';
+    if (item.type === 'weapon' || item.type === 'armor') {
+      const canEquip = checkCanEquip(item, state);
+      if (equipped) {
+        const unequipBtn = document.createElement('button');
+        unequipBtn.className = 'btn btn-ghost';
+        unequipBtn.textContent = '卸下装备';
+        unequipBtn.addEventListener('click', () => { unequipItem(item, state); modal.classList.add('hidden'); });
+        actions.appendChild(unequipBtn);
+      } else if (canEquip.ok) {
+        const equipBtn = document.createElement('button');
+        equipBtn.className = 'btn btn-primary';
+        equipBtn.textContent = '装备';
+        equipBtn.addEventListener('click', () => { equipItem(item, state); modal.classList.add('hidden'); });
+        actions.appendChild(equipBtn);
+      } else {
+        const notice = document.createElement('span');
+        notice.style.cssText = 'font-size:0.72rem;color:var(--accent-red)';
+        notice.textContent = canEquip.reason;
+        actions.appendChild(notice);
+      }
+    }
+
+    if (item.type === 'item' && (item.count || 1) > 0) {
+      const discardBtn = document.createElement('button');
+      discardBtn.className = 'btn btn-ghost btn-sm';
+      discardBtn.textContent = '丢弃';
+      discardBtn.addEventListener('click', () => {
+        GameCore.removeItemFromInventory(item.id, 1);
+        modal.classList.add('hidden');
+        render();
+        GameCore.showToast(`丢弃了 ${item.name}`, 'info');
+      });
+      actions.appendChild(discardBtn);
     }
 
     modal.classList.remove('hidden');
   }
 
-  /* ===================== EQUIP FROM INVENTORY ===================== */
-  function handleEquip() {
-    const state = GameCore.getState();
-    const item  = state.inventory.find(i => i.id === selectedItemId);
-    if (!item) return;
+  function checkCanEquip(item, state) {
+    const data = item.data;
+    if (!data) return { ok: false, reason: '无法装备' };
+    if (!state.playerClass) return { ok: false, reason: '请先选择职业' };
 
-    if (item.type === 'hero') {
-      document.getElementById('item-detail-modal').classList.add('hidden');
-      GameCore.navigateTo('characters');
-      return;
+    // Level check
+    if (data.required_level && state.level < data.required_level) {
+      return { ok: false, reason: `需要等级 ${data.required_level}` };
     }
 
-    // For weapon/mount/pet, prompt to pick a character
-    if (state.characters.length === 0) {
-      GameCore.showToast('请先获得英雄角色！', 'warning');
-      return;
+    // Class check
+    if (data.required_class && data.required_class !== state.playerClass) {
+      return { ok: false, reason: `需要职业：${data.required_class}` };
+    }
+    if (data.class && data.class !== '全职业' &&
+        !data.class.includes(state.playerClass) &&
+        !data.class.startsWith('等级')) {
+      const cfg = GAME_DATA.CLASS_CONFIG[state.playerClass];
+      if (cfg && !cfg.armor_classes.includes(data.class)) {
+        return { ok: false, reason: `职业不匹配` };
+      }
     }
 
-    // Auto-equip to first compatible character
-    if (item.type === 'weapon') {
-      const char = state.characters.find(c => {
-        const cls = GAME_DATA.CLASS_CONFIG[c.class];
-        return cls && item.class_req && item.class_req.includes(c.class);
-      });
-      if (!char) { GameCore.showToast('没有适合的职业角色！', 'warning'); return; }
-      char.equipment.weapon = item.id;
-      GameCore.showToast(`${item.name} 已装备给 ${char.name}`, 'success');
-    } else if (item.type === 'mount') {
-      const char = state.characters[0];
-      char.mount = item.id;
-      GameCore.showToast(`${item.name} 已装备给 ${char.name}`, 'success');
-    } else if (item.type === 'pet') {
-      const char = state.characters[0];
-      char.pet = item.id;
-      GameCore.showToast(`${item.name} 已装备给 ${char.name}`, 'success');
-    }
-
-    document.getElementById('item-detail-modal').classList.add('hidden');
-    GameCore.checkAchievements();
+    return { ok: true };
   }
 
-  /* ===================== DISCARD ===================== */
-  function handleDiscard() {
-    const state = GameCore.getState();
-    const idx   = state.inventory.findIndex(i => i.id === selectedItemId);
-    if (idx === -1) return;
-    const item = state.inventory[idx];
-
-    // Give gold
-    const goldMap = { legendary:5000, epic:1000, rare:200, common:20 };
-    const earned  = goldMap[item.rarity] || 20;
-
-    if ((item.count||1) > 1) {
-      item.count--;
-    } else {
-      state.inventory.splice(idx, 1);
-    }
-    state.gold += earned;
-    GameCore.updateHUD();
-    document.getElementById('item-detail-modal').classList.add('hidden');
-    GameCore.showToast(`分解获得 ${earned} 金币`, 'success');
+  function equipItem(item, state) {
+    const data = item.data;
+    if (!data) return;
+    const slot = item.type === 'weapon' ? '主武器' : (data.slot || '头部');
+    state.equipment[slot] = item.id;
+    GameCore.showToast(`装备了 ${item.name}`, 'success');
     render();
+    if (window.CharacterSystem) window.CharacterSystem.render();
   }
 
-  /* ===================== TABS ===================== */
-  function bindTabs() {
-    document.querySelectorAll('.inv-tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        currentFilter = tab.dataset.filter;
-        render();
-      });
-    });
+  function unequipItem(item, state) {
+    for (const slot of Object.keys(state.equipment)) {
+      if (state.equipment[slot] === item.id) {
+        state.equipment[slot] = null;
+        break;
+      }
+    }
+    GameCore.showToast(`卸下了 ${item.name}`, 'info');
+    render();
+    if (window.CharacterSystem) window.CharacterSystem.render();
   }
 
   /* ===================== INIT ===================== */
   function init() {
-    bindTabs();
-    document.getElementById('item-modal-close').addEventListener('click', () => {
-      document.getElementById('item-detail-modal').classList.add('hidden');
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        render();
+      });
     });
-    document.getElementById('btn-item-equip').addEventListener('click', handleEquip);
-    document.getElementById('btn-item-discard').addEventListener('click', handleDiscard);
+
+    document.getElementById('item-modal-close').addEventListener('click', () => {
+      document.getElementById('item-modal').classList.add('hidden');
+    });
   }
 
   window.addEventListener('DOMContentLoaded', init);
-
   window.InventorySystem = { render };
 
 })();

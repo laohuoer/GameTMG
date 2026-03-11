@@ -1,28 +1,24 @@
-/* ========================================================
-   map.css — 世界地图样式
-   ======================================================== */
+/* =====================================================
+   map.css - 咕咕大冒险 世界地图样式
+   ===================================================== */
 
 #page-map {
-  background: #0a0a0f;
+  background: #050810;
   overflow: hidden;
 }
 .map-wrapper {
-  position: relative;
-  width: 100%; height: 100%;
-  overflow: hidden;
+  position: relative; width: 100%; height: 100%; overflow: hidden;
 }
 
-/* ---- CANVAS ---- */
+/* ---- Canvas ---- */
 #map-canvas {
   position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  display: block;
+  width: 100%; height: 100%; display: block;
 }
 
-/* ---- REGION BUTTONS ---- */
+/* ---- Region Buttons ---- */
 #map-regions {
-  position: absolute; inset: 0;
-  pointer-events: none;
+  position: absolute; inset: 0; pointer-events: none;
 }
 .map-region-btn {
   position: absolute;
@@ -34,90 +30,82 @@
   transition: transform var(--transition);
   z-index: 10;
 }
-.map-region-btn:hover { transform: translate(-50%, -50%) scale(1.1); }
-.map-region-btn:hover .region-icon { filter: drop-shadow(0 0 8px currentColor); }
+.map-region-btn:hover {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.map-region-btn:hover .region-icon {
+  filter: drop-shadow(0 0 10px currentColor);
+}
 
 .region-icon {
   font-size: 1.8rem; line-height: 1;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.9));
   transition: filter var(--transition);
 }
 .region-label {
-  background: rgba(10,10,15,0.85);
-  border: 1px solid var(--border-gold-dark);
+  background: rgba(5,8,16,0.90);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 2px 7px; font-size: 0.68rem;
-  color: var(--text-gold); white-space: nowrap;
+  padding: 2px 7px; font-size: 0.65rem;
+  color: var(--text-secondary); white-space: nowrap;
   letter-spacing: 0.5px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.7);
 }
-.region-explored-badge {
+.region-tier-badge {
   position: absolute; top: -4px; right: -8px;
-  font-size: 0.65rem; background: rgba(39,174,96,0.9);
+  font-size: 0.6rem; background: rgba(58,138,224,0.85);
   border-radius: 50%; width: 16px; height: 16px;
   display: flex; align-items: center; justify-content: center;
-  color: white;
-}
-.map-region-btn.unexplored .region-icon { filter: grayscale(0.4) brightness(0.7); }
-.map-region-btn.unexplored .region-label { color: var(--text-muted); border-color: #3a3a4a; }
-
-/* ---- LEGEND POOL BADGE ---- */
-.map-region-btn.legendary-pool .region-label {
-  border-color: var(--rarity-legendary);
-  color: var(--rarity-legendary);
-  animation: glow-pulse 2s ease-in-out infinite;
+  color: white; font-weight: 700;
 }
 
-/* ---- TOOLTIP ---- */
-.map-tooltip {
-  position: absolute; pointer-events: none; z-index: 20;
-  background: rgba(10,10,15,0.95);
-  border: 1px solid var(--border-gold-dark);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px; font-size: 0.75rem;
-  color: var(--text-silver); white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-  transform: translate(-50%, -120%);
-}
-.map-tooltip.hidden { display: none; }
+/* Tier color labels */
+.map-region-btn[data-tier="1"] .region-label { border-color: rgba(58,204,112,0.4); color: #80e0a0; }
+.map-region-btn[data-tier="2"] .region-label { border-color: rgba(58,138,224,0.4); color: #80b0e0; }
+.map-region-btn[data-tier="3"] .region-label { border-color: rgba(200,144,48,0.5); color: var(--text-gold); }
+.map-region-btn[data-tier="4"] .region-label { border-color: rgba(160,80,200,0.5); color: #c090e0; }
+.map-region-btn[data-tier="5"] .region-label { border-color: rgba(224,64,64,0.5); color: #f09090; animation: glow 2s ease-in-out infinite; }
 
-/* ---- MAP INFO PANEL ---- */
+/* ---- Map Info Panel ---- */
 .map-info-panel {
   position: absolute; bottom: 0; left: 0; right: 0; z-index: 30;
-  background: linear-gradient(0deg, rgba(10,10,15,0.98) 0%, rgba(18,18,26,0.95) 100%);
-  border-top: 1px solid var(--border-gold-dark);
-  padding: 16px 16px 20px;
+  background: linear-gradient(0deg, rgba(5,8,16,0.99) 0%, rgba(15,20,32,0.97) 100%);
+  border-top: 1px solid var(--border-gold);
+  padding: 14px 16px 18px;
   transform: translateY(100%);
   transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.7);
-  display: block !important;  /* always rendered, slid via transform */
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.8);
+  display: block !important;
 }
 .map-info-panel.visible { transform: translateY(0); }
 
 .map-info-panel h2 {
-  color: var(--text-gold); font-size: 1.1rem; margin-bottom: 4px;
-  padding-right: 24px;
+  color: var(--text-gold); font-size: 1.05rem; margin-bottom: 4px;
+  padding-right: 30px;
 }
 .map-info-panel p {
-  color: var(--text-muted); font-size: 0.8rem; line-height: 1.6;
-  margin-bottom: 10px;
+  color: var(--text-muted); font-size: 0.78rem;
+  line-height: 1.5; margin-bottom: 10px;
 }
-#map-panel-pool {
-  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px;
-}
-.pool-preview-item {
-  font-size: 1rem; background: var(--bg-panel);
-  border: 1px solid #3a3a4a; border-radius: var(--radius-sm);
-  width: 32px; height: 32px;
-  display: flex; align-items: center; justify-content: center;
-  transition: transform var(--transition);
-}
-.pool-preview-item:hover { transform: scale(1.2); }
-.pool-preview-item.legendary { border-color: var(--rarity-legendary); }
-.pool-preview-item.epic      { border-color: var(--rarity-epic); }
-.pool-preview-item.rare      { border-color: var(--rarity-rare); }
 
-/* ---- MAP BACKGROUND CANVAS ---- */
-.map-continent {
-  position: absolute; pointer-events: none;
+/* Monster list in panel */
+.map-monster-list {
+  display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px;
+}
+.map-monster-tag {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 3px 7px;
+  font-size: 0.65rem; color: var(--text-secondary);
+}
+.map-monster-tag .attr-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.map-monster-tag .monster-lvl { color: var(--text-muted); }
+
+/* Level range badge */
+.map-panel-level-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.7rem; color: var(--text-secondary);
+  margin-bottom: 8px;
 }

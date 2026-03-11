@@ -1,5 +1,5 @@
 /**
- * main.js — 游戏核心逻辑：状态管理、页面路由、存档系统
+ * main.js - 咕咕大冒险 核心逻辑：状态管理、页面路由、存档系统
  */
 
 (function() {
@@ -7,16 +7,23 @@
 
   /* ===================== STATE ===================== */
   let state = null;
+  const STORAGE_KEY = 'gugu_adventure_state';
 
   function loadState() {
     try {
-      const raw = localStorage.getItem('wow_gacha_state');
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         state = JSON.parse(raw);
-        // Merge defaults for missing keys (version compatibility)
+        // Merge defaults for new keys
         const def = GAME_DATA.DEFAULT_STATE;
         for (const key of Object.keys(def)) {
-          if (state[key] === undefined) state[key] = def[key];
+          if (state[key] === undefined) state[key] = JSON.parse(JSON.stringify(def[key]));
+        }
+        // Ensure equipment keys are all present
+        if (!state.equipment) state.equipment = {};
+        const eqDef = GAME_DATA.DEFAULT_STATE.equipment;
+        for (const slot of Object.keys(eqDef)) {
+          if (state.equipment[slot] === undefined) state.equipment[slot] = null;
         }
       } else {
         state = JSON.parse(JSON.stringify(GAME_DATA.DEFAULT_STATE));
@@ -29,33 +36,41 @@
 
   function saveState() {
     try {
-      localStorage.setItem('wow_gacha_state', JSON.stringify(state));
-      showToast('游戏已存档', 'success');
+      state.lastSave = Date.now();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      showToast('游戏已存档 💾', 'success');
     } catch(e) {
-      showToast('存档失败', 'error');
+      showToast('存档失败！', 'error');
     }
   }
 
-  function getState() { return state; }
-  function setState(patch) {
-    Object.assign(state, patch);
+  function resetState() {
+    localStorage.removeItem(STORAGE_KEY);
+    state = JSON.parse(JSON.stringify(GAME_DATA.DEFAULT_STATE));
+    updateHUD();
+    navigateTo('map');
+    showToast('游戏已重置', 'info');
   }
+
+  function getState() { return state; }
+  function setState(patch) { Object.assign(state, patch); }
 
   /* ===================== HUD ===================== */
   function updateHUD() {
-    document.getElementById('hud-gold').textContent    = formatNum(state.gold);
-    document.getElementById('hud-gems').textContent    = formatNum(state.gems);
-    document.getElementById('hud-tickets').textContent = formatNum(state.tickets);
+    if (!state) return;
+    document.getElementById('hud-gold').textContent  = formatNum(state.gold);
+    document.getElementById('hud-level').textContent = state.level;
+    document.getElementById('hud-exp').textContent   = formatNum(state.exp);
   }
 
   /* ===================== PAGE ROUTING ===================== */
   const PAGE_TITLES = {
     map:        '世界地图',
-    gacha:      '扭蛋机',
+    battle:     '战斗',
     inventory:  '背包',
-    characters: '角色',
-    squad:      '小队',
+    character:  '个人信息',
     codex:      '图鉴',
+    settings:   '设置',
   };
 
   let currentPage = 'map';
@@ -70,18 +85,16 @@
     if (page) page.classList.add('active');
     currentPage = pageId;
     document.getElementById('hud-page-title').textContent = PAGE_TITLES[pageId] || '';
-    // Trigger page-specific refresh
     onPageEnter(pageId);
   }
 
   function onPageEnter(pageId) {
     switch(pageId) {
-      case 'inventory':  window.InventorySystem && window.InventorySystem.render(); break;
-      case 'characters': window.CharacterSystem && window.CharacterSystem.render(); break;
-      case 'squad':      window.SquadSystem     && window.SquadSystem.render();     break;
-      case 'codex':      window.CodexSystem     && window.CodexSystem.render();     break;
-      case 'map':        window.MapSystem       && window.MapSystem.render();       break;
-      case 'gacha':      window.GachaSystem     && window.GachaSystem.onEnter();    break;
+      case 'map':       window.MapSystem       && window.MapSystem.render();       break;
+      case 'inventory': window.InventorySystem && window.InventorySystem.render(); break;
+      case 'character': window.CharacterSystem && window.CharacterSystem.render(); break;
+      case 'codex':     window.CodexSystem     && window.CodexSystem.render();     break;
+      case 'settings':  window.SettingsSystem  && window.SettingsSystem.render();  break;
     }
   }
 
@@ -95,93 +108,123 @@
     setTimeout(() => t.remove(), duration);
   }
 
-  /* ===================== ACHIEVEMENT ===================== */
-  function checkAchievements() {
-    const { ACHIEVEMENTS } = GAME_DATA;
-    for (const ach of ACHIEVEMENTS) {
-      if (state.unlockedAchievements.includes(ach.id)) continue;
-      if (ach.condition(state)) {
-        state.unlockedAchievements.push(ach.id);
-        showAchievementPopup(ach.name, ach.desc);
-      }
-    }
-  }
-
-  function showAchievementPopup(name, desc) {
-    const popup = document.getElementById('achievement-popup');
-    const descEl = document.getElementById('achievement-desc');
-    descEl.textContent = desc;
-    popup.classList.remove('hidden');
-    popup.classList.add('show');
-    setTimeout(() => {
-      popup.classList.remove('show');
-      setTimeout(() => popup.classList.add('hidden'), 400);
-    }, 3500);
-    showToast('🏆 ' + name, 'legendary', 4000);
-  }
-
-  /* ===================== CURRENCY HELPERS ===================== */
-  function spendTickets(n) {
-    if (state.tickets < n) {
-      // Try converting gems (100 gems = 10 tickets)
-      const needed = n - state.tickets;
-      const gemCost = needed * 100;
-      if (state.gems >= gemCost) {
-        state.gems -= gemCost;
-        state.tickets += needed;
-      } else {
-        showToast('扭蛋券不足！', 'error');
-        return false;
-      }
-    }
-    state.tickets -= n;
-    updateHUD();
-    return true;
-  }
-
-  function addItem(item) {
-    // Check if item already in inventory
-    const existing = state.inventory.find(i => i.id === item.id);
+  /* ===================== INVENTORY HELPERS ===================== */
+  function addItemToInventory(entry) {
+    // entry: { id, name, type, emoji, data, count:1 }
+    if (!entry.type) entry.type = 'item';
+    const existing = state.inventory.find(i => i.id === entry.id);
     if (existing) {
-      existing.count = (existing.count || 1) + 1;
+      existing.count = (existing.count || 1) + (entry.count || 1);
+      return true;
+    }
+    if (state.inventory.length >= state.inventoryMax) {
+      showToast('背包已满！', 'warning');
+      return false;
+    }
+    state.inventory.push({ ...entry, count: entry.count || 1, obtainedAt: Date.now() });
+    return true;
+  }
+
+  function removeItemFromInventory(id, count = 1) {
+    const idx = state.inventory.findIndex(i => i.id === id);
+    if (idx === -1) return false;
+    if ((state.inventory[idx].count || 1) <= count) {
+      state.inventory.splice(idx, 1);
     } else {
-      if (state.inventory.length >= state.inventoryMax) {
-        showToast('背包已满！', 'error');
-        return false;
-      }
-      state.inventory.push({ ...item, count: 1, obtainedAt: Date.now() });
-      // Also add to characters if hero
-      if (item.type === 'hero') {
-        const existChar = state.characters.find(c => c.id === item.id);
-        if (!existChar) {
-          state.characters.push({
-            id: item.id, name: item.name, rarity: item.rarity, class: item.class,
-            emoji: item.emoji, stats: { ...item.stats },
-            equipment: { head: null, shoulder: null, chest: null, weapon: null, offhand: null, legs: null, boots: null },
-            mount: null, pet: null,
-          });
-        }
-      }
+      state.inventory[idx].count -= count;
     }
     return true;
+  }
+
+  /* ===================== LEVELING ===================== */
+  function addExp(amount) {
+    state.exp += amount;
+    let leveled = false;
+    while (state.level < 80) {
+      const needed = GAME_DATA.calcExpForLevel(state.level + 1);
+      if (state.exp >= needed) {
+        state.exp -= needed;
+        state.level++;
+        leveled = true;
+        showToast(`🎉 升级！当前等级 Lv.${state.level}`, 'success', 4000);
+      } else break;
+    }
+    updateHUD();
+    if (leveled && window.CharacterSystem) {
+      window.CharacterSystem.onLevelUp();
+    }
+    return leveled;
+  }
+
+  function addGold(amount) {
+    state.gold += amount;
+    updateHUD();
+  }
+
+  /* ===================== CONFIRM DIALOG ===================== */
+  let confirmCallback = null;
+  function showConfirm(title, msg, onOk) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent = msg;
+    document.getElementById('confirm-modal').classList.remove('hidden');
+    confirmCallback = onOk;
   }
 
   /* ===================== NUMBER FORMAT ===================== */
   function formatNum(n) {
     if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
-    if (n >= 1000)    return (n/1000).toFixed(1) + 'K';
-    return n.toString();
+    if (n >= 10000)   return (n/1000).toFixed(1) + 'K';
+    return Math.floor(n).toString();
+  }
+
+  /* ===================== CALC PLAYER BATTLE STATS ===================== */
+  function calcPlayerStats() {
+    const cfg = GAME_DATA.CLASS_CONFIG[state.playerClass] || GAME_DATA.CLASS_CONFIG['剑士'];
+    const base = cfg.base_stats;
+    // Scale stats with level
+    const lvlMult = 1 + (state.level - 1) * 0.12;
+    let stats = {
+      hp:    Math.floor(base.hp  * lvlMult * 100),
+      atk:   Math.floor(base.atk * lvlMult * 100),
+      def:   Math.floor(base.def * lvlMult * 100),
+      spd:   base.spd,
+      crit:  5,
+      acc:   90,
+      eva:   5,
+    };
+    // Add equipment bonuses
+    for (const slot of Object.keys(state.equipment)) {
+      const itemId = state.equipment[slot];
+      if (!itemId) continue;
+      const weapon = GAME_DATA.getWeaponById(itemId);
+      if (weapon) {
+        const bs = weapon.base_stats || {};
+        stats.atk  += (bs.attack_power  || 0);
+        stats.spd  += (bs.attack_speed  || 0);
+        stats.crit += (bs.critical_strike || 0);
+        stats.acc  += (bs.accuracy       || 0);
+        stats.eva  += (bs.evasion        || 0);
+      }
+      const armor = GAME_DATA.getArmorById(itemId);
+      if (armor) {
+        const bs = armor.base_stats || {};
+        stats.def  += (bs.defense_power   || 0);
+        stats.spd  += (bs.attack_speed    || 0);
+        stats.eva  += (bs.evasion         || 0);
+        stats.acc  += (bs.accuracy        || 0);
+      }
+    }
+    return stats;
   }
 
   /* ===================== LOADING SCREEN ===================== */
   function runLoadingScreen() {
     const bar  = document.getElementById('loading-bar');
     const text = document.getElementById('loading-text');
-    const msgs = ['正在连接服务器...', '加载世界数据...', '召唤英雄...', '构建地图...', '准备完毕！'];
-    let progress = 0;
-    let step = 0;
+    const msgs = ['正在加载世界数据...', '唤醒怪物们...', '整理背包...', '绘制地图...', '准备出发！'];
+    let progress = 0, step = 0;
     const interval = setInterval(() => {
-      progress += Math.random() * 22 + 8;
+      progress += Math.random() * 24 + 8;
       if (progress > 100) progress = 100;
       bar.style.width = progress + '%';
       if (step < msgs.length) { text.textContent = msgs[step++]; }
@@ -199,24 +242,30 @@
     loading.style.transition = 'opacity 0.5s ease';
     setTimeout(() => {
       loading.style.display = 'none';
-      app.style.display = 'block';
+      app.classList.add('visible');
     }, 500);
     updateHUD();
     navigateTo('map');
   }
 
-  /* ===================== EVENT LISTENERS ===================== */
+  /* ===================== EVENTS ===================== */
   function bindEvents() {
-    // Nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => navigateTo(btn.dataset.page));
     });
-    // Save button
-    document.getElementById('btn-save').addEventListener('click', saveState);
-    // Auto-save every 60s
+    // Confirm modal
+    document.getElementById('confirm-cancel').addEventListener('click', () => {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      confirmCallback = null;
+    });
+    document.getElementById('confirm-ok').addEventListener('click', () => {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      if (confirmCallback) { confirmCallback(); confirmCallback = null; }
+    });
+    // Auto-save every 90s
     setInterval(() => {
-      localStorage.setItem('wow_gacha_state', JSON.stringify(state));
-    }, 60000);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+    }, 90000);
   }
 
   /* ===================== BOOT ===================== */
@@ -228,10 +277,13 @@
 
   /* ===================== PUBLIC API ===================== */
   window.GameCore = {
-    getState, setState,
+    getState, setState, resetState,
     updateHUD, saveState,
-    showToast, showAchievementPopup, checkAchievements,
-    navigateTo, spendTickets, addItem, formatNum,
+    showToast, navigateTo,
+    addItemToInventory, removeItemFromInventory,
+    addExp, addGold,
+    calcPlayerStats, formatNum,
+    showConfirm,
     currentPage: () => currentPage,
   };
 
