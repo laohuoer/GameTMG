@@ -76,13 +76,9 @@
       return;
     }
 
-    // Pick 2-3 random monsters (guaranteed multi-enemy encounter)
-    const maxCount = Math.min(3, allMons.length);
-    const minCount = Math.min(2, allMons.length);
-    const count    = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
-
+    // Pick exactly 1 random monster
     const shuffled = [...allMons].sort(() => Math.random() - 0.5);
-    const picked   = shuffled.slice(0, count);
+    const picked   = shuffled.slice(0, 1);
 
     const playerStats = GameCore.calcPlayerStats();
 
@@ -121,6 +117,10 @@
       phase:           'player',  // 'player' | 'enemy' | 'over'
       log:             [],
     };
+
+    // Clear battle log DOM from previous battle
+    const logInner = document.getElementById('battle-log-inner');
+    if (logInner) logInner.innerHTML = '';
 
     GameCore.navigateTo('battle');
     renderBattle();
@@ -513,38 +513,10 @@
     battle.phase = 'over';
     updateActionButtons();
 
-    const state = GameCore.getState();
-
-    // Consolation rewards: 30% of victory EXP + small gold
-    const consolationExp  = Math.max(1, Math.floor(
-      battle.enemies.reduce((s, e) => s + e.exp, 0) * 0.30
-    ));
-    const consolationGold = Math.max(1, Math.floor(
-      battle.enemies.reduce((s, e) => s + e.gold, 0) * 0.20
-    ));
-
-    // Still record codex on defeat (you encountered them)
-    const newCodex = [];
-    battle.enemies.forEach(enemy => {
-      if (!state.defeatedMonsters.includes(enemy.id)) {
-        state.defeatedMonsters.push(enemy.id);
-        newCodex.push(enemy.name);
-      }
-    });
-
-    GameCore.addExp(consolationExp);
-    GameCore.addGold(consolationGold);
-    GameCore.updateHUD();
-
-    if (newCodex.length > 0) {
-      GameCore.showToast(`📖 图鉴解锁：${newCodex.join('、')}`, 'info', 3500);
-    }
-
     document.getElementById('battle-result-icon').textContent  = '💀';
     document.getElementById('battle-result-title').textContent = '战斗失败！';
-    document.getElementById('battle-result-desc').textContent  =
-      `虽然落败，仍获得 ${consolationExp} EXP  🪙 ${consolationGold} 金币`;
-    document.getElementById('battle-result-drops').innerHTML = '';
+    document.getElementById('battle-result-desc').textContent  = '你被击倒了，没有获得任何奖励。';
+    document.getElementById('battle-result-drops').innerHTML   = '';
 
     document.getElementById('battle-result').classList.remove('hidden');
     addLog('💀 你被击倒了...', 'defeat');
