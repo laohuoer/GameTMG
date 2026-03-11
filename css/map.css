@@ -1,0 +1,123 @@
+/* ========================================================
+   map.css — 世界地图样式
+   ======================================================== */
+
+#page-map {
+  background: #0a0a0f;
+  overflow: hidden;
+}
+.map-wrapper {
+  position: relative;
+  width: 100%; height: 100%;
+  overflow: hidden;
+}
+
+/* ---- CANVAS ---- */
+#map-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* ---- REGION BUTTONS ---- */
+#map-regions {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.map-region-btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: none; border: none;
+  cursor: pointer; pointer-events: auto;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  transition: transform var(--transition);
+  z-index: 10;
+}
+.map-region-btn:hover { transform: translate(-50%, -50%) scale(1.1); }
+.map-region-btn:hover .region-icon { filter: drop-shadow(0 0 8px currentColor); }
+
+.region-icon {
+  font-size: 1.8rem; line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+  transition: filter var(--transition);
+}
+.region-label {
+  background: rgba(10,10,15,0.85);
+  border: 1px solid var(--border-gold-dark);
+  border-radius: var(--radius-sm);
+  padding: 2px 7px; font-size: 0.68rem;
+  color: var(--text-gold); white-space: nowrap;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.region-explored-badge {
+  position: absolute; top: -4px; right: -8px;
+  font-size: 0.65rem; background: rgba(39,174,96,0.9);
+  border-radius: 50%; width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+}
+.map-region-btn.unexplored .region-icon { filter: grayscale(0.4) brightness(0.7); }
+.map-region-btn.unexplored .region-label { color: var(--text-muted); border-color: #3a3a4a; }
+
+/* ---- LEGEND POOL BADGE ---- */
+.map-region-btn.legendary-pool .region-label {
+  border-color: var(--rarity-legendary);
+  color: var(--rarity-legendary);
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ---- TOOLTIP ---- */
+.map-tooltip {
+  position: absolute; pointer-events: none; z-index: 20;
+  background: rgba(10,10,15,0.95);
+  border: 1px solid var(--border-gold-dark);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px; font-size: 0.75rem;
+  color: var(--text-silver); white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+  transform: translate(-50%, -120%);
+}
+.map-tooltip.hidden { display: none; }
+
+/* ---- MAP INFO PANEL ---- */
+.map-info-panel {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 30;
+  background: linear-gradient(0deg, rgba(10,10,15,0.98) 0%, rgba(18,18,26,0.95) 100%);
+  border-top: 1px solid var(--border-gold-dark);
+  padding: 16px 16px 20px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.7);
+  display: block !important;  /* always rendered, slid via transform */
+}
+.map-info-panel.visible { transform: translateY(0); }
+
+.map-info-panel h2 {
+  color: var(--text-gold); font-size: 1.1rem; margin-bottom: 4px;
+  padding-right: 24px;
+}
+.map-info-panel p {
+  color: var(--text-muted); font-size: 0.8rem; line-height: 1.6;
+  margin-bottom: 10px;
+}
+#map-panel-pool {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px;
+}
+.pool-preview-item {
+  font-size: 1rem; background: var(--bg-panel);
+  border: 1px solid #3a3a4a; border-radius: var(--radius-sm);
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--transition);
+}
+.pool-preview-item:hover { transform: scale(1.2); }
+.pool-preview-item.legendary { border-color: var(--rarity-legendary); }
+.pool-preview-item.epic      { border-color: var(--rarity-epic); }
+.pool-preview-item.rare      { border-color: var(--rarity-rare); }
+
+/* ---- MAP BACKGROUND CANVAS ---- */
+.map-continent {
+  position: absolute; pointer-events: none;
+}

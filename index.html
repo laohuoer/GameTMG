@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>魔兽世界 · 扭蛋机</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/ui.css" />
+  <link rel="stylesheet" href="css/gacha.css" />
+  <link rel="stylesheet" href="css/map.css" />
+</head>
+<body>
+  <!-- ========== LOADING SCREEN ========== -->
+  <div id="loading-screen">
+    <div class="loading-logo">
+      <div class="loading-emblem">⚔</div>
+      <h1 class="loading-title">魔兽世界</h1>
+      <p class="loading-subtitle">扭蛋冒险</p>
+    </div>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar" id="loading-bar"></div>
+    </div>
+    <p class="loading-text" id="loading-text">正在载入世界...</p>
+  </div>
+
+  <!-- ========== MAIN APP ========== -->
+  <div id="app" style="display:none;">
+
+    <!-- TOP HUD -->
+    <header class="hud-bar">
+      <div class="hud-left">
+        <span class="hud-icon">🪙</span>
+        <span id="hud-gold" class="hud-value">0</span>
+        <span class="hud-icon" style="margin-left:10px">💎</span>
+        <span id="hud-gems" class="hud-value">0</span>
+      </div>
+      <div class="hud-center">
+        <span class="hud-page-title" id="hud-page-title">世界地图</span>
+      </div>
+      <div class="hud-right">
+        <span class="hud-icon">🎰</span>
+        <span id="hud-tickets" class="hud-value">0</span>
+        <button class="hud-btn" id="btn-save" title="存档">💾</button>
+      </div>
+    </header>
+
+    <!-- PAGES -->
+    <main class="page-container">
+
+      <!-- ===== PAGE: WORLD MAP ===== -->
+      <section class="page active" id="page-map">
+        <div class="map-wrapper">
+          <canvas id="map-canvas"></canvas>
+          <div id="map-regions"></div>
+          <div id="map-tooltip" class="map-tooltip hidden"></div>
+        </div>
+        <div id="map-info-panel" class="map-info-panel">
+          <button class="panel-close" id="map-panel-close">✕</button>
+          <h2 id="map-panel-title"></h2>
+          <p id="map-panel-desc"></p>
+          <div id="map-panel-pool"></div>
+          <button class="btn-primary" id="map-panel-enter">进入此地扭蛋</button>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: GACHA ===== -->
+      <section class="page" id="page-gacha">
+        <div class="gacha-header">
+          <div class="gacha-pool-selector">
+            <button class="pool-tab active" data-pool="standard">标准池</button>
+            <button class="pool-tab" data-pool="region">区域限定</button>
+            <button class="pool-tab" data-pool="limited">限时传说</button>
+          </div>
+          <div class="pity-counter">
+            <span>保底进度：</span>
+            <span id="pity-count">0</span>
+            <span>/90</span>
+            <div class="pity-bar-wrap"><div class="pity-bar" id="pity-bar"></div></div>
+          </div>
+        </div>
+
+        <div class="gacha-machine-wrap">
+          <div class="gacha-machine" id="gacha-machine">
+            <div class="machine-orb-container">
+              <div class="machine-orb" id="machine-orb">
+                <div class="orb-glow"></div>
+                <div class="orb-core">⚜</div>
+              </div>
+            </div>
+            <div class="machine-base">
+              <div class="machine-slot-left"></div>
+              <div class="machine-slot-right"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="gacha-buttons">
+          <button class="btn-gacha btn-single" id="btn-single-gacha">
+            <span class="btn-gacha-icon">🎲</span>
+            <span>单抽</span>
+            <span class="btn-gacha-cost">×1 🎟</span>
+          </button>
+          <button class="btn-gacha btn-ten" id="btn-ten-gacha">
+            <span class="btn-gacha-icon">🎰</span>
+            <span>十连</span>
+            <span class="btn-gacha-cost">×10 🎟</span>
+          </button>
+        </div>
+
+        <div class="gacha-rates">
+          <span class="rate-badge legendary">传说 1%</span>
+          <span class="rate-badge epic">史诗 5%</span>
+          <span class="rate-badge rare">稀有 20%</span>
+          <span class="rate-badge common">普通 74%</span>
+        </div>
+
+        <!-- RESULT OVERLAY -->
+        <div id="gacha-result-overlay" class="gacha-result-overlay hidden">
+          <div class="result-backdrop" id="result-backdrop"></div>
+          <div class="result-container" id="result-container"></div>
+          <button class="btn-result-close" id="btn-result-close">点击继续</button>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: INVENTORY ===== -->
+      <section class="page" id="page-inventory">
+        <div class="inv-tabs">
+          <button class="inv-tab active" data-filter="all">全部</button>
+          <button class="inv-tab" data-filter="hero">英雄</button>
+          <button class="inv-tab" data-filter="weapon">装备</button>
+          <button class="inv-tab" data-filter="mount">坐骑</button>
+          <button class="inv-tab" data-filter="pet">宠物</button>
+        </div>
+        <div class="inv-stats">
+          <span id="inv-count">0</span> / <span id="inv-max">200</span> 格
+        </div>
+        <div class="inv-grid" id="inv-grid"></div>
+
+        <!-- ITEM DETAIL MODAL -->
+        <div id="item-detail-modal" class="modal hidden">
+          <div class="modal-content">
+            <button class="modal-close" id="item-modal-close">✕</button>
+            <div id="item-detail-content"></div>
+            <div class="modal-actions">
+              <button class="btn-primary" id="btn-item-equip">装备</button>
+              <button class="btn-secondary" id="btn-item-discard">分解</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: CHARACTERS ===== -->
+      <section class="page" id="page-characters">
+        <div class="char-list" id="char-list"></div>
+
+        <!-- CHARACTER DETAIL MODAL -->
+        <div id="char-detail-modal" class="modal hidden">
+          <div class="modal-content char-modal-content">
+            <button class="modal-close" id="char-modal-close">✕</button>
+            <div class="char-detail-layout">
+              <div class="char-portrait-area">
+                <div class="char-portrait" id="modal-char-portrait"></div>
+                <div class="char-class-badge" id="modal-char-class"></div>
+                <h2 id="modal-char-name"></h2>
+              </div>
+              <div class="char-equip-area">
+                <h3>装备槽位</h3>
+                <div class="equip-slots" id="equip-slots"></div>
+                <h3>坐骑 / 宠物</h3>
+                <div class="mount-pet-slots" id="mount-pet-slots"></div>
+              </div>
+              <div class="char-stats-area">
+                <h3>属性面板</h3>
+                <div id="char-stats-panel"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: SQUAD ===== -->
+      <section class="page" id="page-squad">
+        <div class="squad-header">
+          <select id="squad-selector" class="squad-selector"></select>
+          <button class="btn-icon" id="btn-new-squad" title="新建小队">＋</button>
+          <button class="btn-icon" id="btn-rename-squad" title="重命名">✏</button>
+          <button class="btn-icon danger" id="btn-delete-squad" title="删除">🗑</button>
+        </div>
+        <div class="squad-power">战力：<span id="squad-power-val">0</span></div>
+        <div class="squad-slots" id="squad-slots">
+          <div class="squad-slot" data-role="tank">
+            <div class="squad-slot-label">🛡 坦克</div>
+            <div class="squad-slot-char" id="slot-tank"></div>
+          </div>
+          <div class="squad-slot" data-role="healer">
+            <div class="squad-slot-label">💚 治疗</div>
+            <div class="squad-slot-char" id="slot-healer"></div>
+          </div>
+          <div class="squad-slot" data-role="dps">
+            <div class="squad-slot-label">⚔ 输出</div>
+            <div class="squad-slot-char" id="slot-dps"></div>
+          </div>
+        </div>
+        <div class="squad-char-pool">
+          <h3>选择角色</h3>
+          <div class="squad-pool-grid" id="squad-pool-grid"></div>
+        </div>
+      </section>
+
+      <!-- ===== PAGE: CODEX ===== -->
+      <section class="page" id="page-codex">
+        <div class="codex-tabs">
+          <button class="codex-tab active" data-type="hero">英雄</button>
+          <button class="codex-tab" data-type="weapon">装备</button>
+          <button class="codex-tab" data-type="mount">坐骑</button>
+          <button class="codex-tab" data-type="pet">宠物</button>
+        </div>
+        <div class="codex-progress-wrap">
+          <span id="codex-progress-text">0 / 0</span>
+          <div class="codex-progress-bar-wrap">
+            <div class="codex-progress-bar" id="codex-progress-bar"></div>
+          </div>
+        </div>
+        <div class="codex-grid" id="codex-grid"></div>
+      </section>
+
+    </main>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+      <button class="nav-btn active" data-page="map">
+        <span class="nav-icon">🗺</span>
+        <span class="nav-label">地图</span>
+      </button>
+      <button class="nav-btn" data-page="gacha">
+        <span class="nav-icon">🎰</span>
+        <span class="nav-label">扭蛋</span>
+      </button>
+      <button class="nav-btn" data-page="inventory">
+        <span class="nav-icon">🎒</span>
+        <span class="nav-label">背包</span>
+      </button>
+      <button class="nav-btn" data-page="characters">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label">角色</span>
+      </button>
+      <button class="nav-btn" data-page="squad">
+        <span class="nav-icon">⚔</span>
+        <span class="nav-label">小队</span>
+      </button>
+      <button class="nav-btn" data-page="codex">
+        <span class="nav-icon">📖</span>
+        <span class="nav-label">图鉴</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-container"></div>
+
+  <!-- ACHIEVEMENT POPUP -->
+  <div id="achievement-popup" class="achievement-popup hidden">
+    <div class="achievement-content">
+      <span class="achievement-icon">🏆</span>
+      <div>
+        <div class="achievement-title">成就解锁！</div>
+        <div class="achievement-desc" id="achievement-desc"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/gacha.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/character.js"></script>
+  <script src="js/squad.js"></script>
+  <script src="js/codex.js"></script>
+  <script src="js/map.js"></script>
+</body>
+</html>
