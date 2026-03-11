@@ -109,3 +109,46 @@
   font-size: 0.7rem; color: var(--text-secondary);
   margin-bottom: 8px;
 }
+
+/* ---- Difficulty tier selection ---- */
+.map-tier-label {
+  font-size: 0.7rem; color: var(--text-muted);
+  margin-bottom: 7px; letter-spacing: 0.5px;
+}
+.map-tier-buttons {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-bottom: 10px;
+}
+.map-tier-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 6px 12px;
+  cursor: pointer; transition: all var(--transition);
+  min-width: 64px;
+}
+.map-tier-btn:hover {
+  border-color: var(--border-bright);
+  background: var(--bg-hover);
+}
+.map-tier-btn.active {
+  border-color: var(--accent-gold);
+  background: rgba(200,160,40,0.12);
+}
+.map-tier-btn[data-tier="1"].active  { border-color: #3acc70; background: rgba(58,204,112,0.12); }
+.map-tier-btn[data-tier="2"].active  { border-color: #3a8ae0; background: rgba(58,138,224,0.12); }
+.map-tier-btn[data-tier="3"].active  { border-color: #c89030; background: rgba(200,144,48,0.12); }
+.map-tier-btn[data-tier="4"].active  { border-color: #a050c8; background: rgba(160,80,200,0.12); }
+.map-tier-btn[data-tier="5"].active  { border-color: #e04040; background: rgba(224,64,64,0.12); }
+.tier-btn-label {
+  font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);
+}
+.map-tier-btn.active .tier-btn-label { color: var(--text-primary); }
+.tier-btn-range {
+  font-size: 0.6rem; color: var(--text-muted);
+}
+/* Description text shown under tier buttons */
+.map-tier-desc {
+  font-size: 0.74rem; color: var(--text-muted);
+  line-height: 1.5; margin: 4px 0 8px;
+  min-height: 1.4em;
+}

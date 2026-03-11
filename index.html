@@ -62,8 +62,19 @@
             <button id="map-panel-close" class="panel-close-btn">✕</button>
             <h2 id="map-panel-title">地区名</h2>
             <p id="map-panel-desc"></p>
-            <div id="map-panel-monsters" class="map-monster-list"></div>
-            <button id="map-panel-enter" class="btn btn-primary btn-full">⚔️ 进入战斗</button>
+
+            <!-- Difficulty tier selection -->
+            <div id="map-tier-section">
+              <div class="map-tier-label">选择难度</div>
+              <div id="map-tier-buttons" class="map-tier-buttons"></div>
+              <p id="map-tier-desc" class="map-tier-desc"></p>
+            </div>
+
+            <!-- Monster list + enter button (shown after tier selected) -->
+            <div id="map-tier-detail" class="hidden">
+              <div id="map-panel-monsters" class="map-monster-list"></div>
+              <button id="map-panel-enter" class="btn btn-primary btn-full">⚔️ 进入战斗</button>
+            </div>
           </div>
         </div>
       </section>

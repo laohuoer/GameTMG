@@ -1,5 +1,6 @@
 /**
  * map.js - 咕咕大冒险 世界地图系统：Canvas背景、区域按钮、信息面板
+ * 地图上只显示地图名，点击后在面板内选择难度
  */
 
 (function() {
@@ -10,6 +11,57 @@
   let animFrame = null;
   let time = 0;
   let particles = [];
+
+  /* ===================== BASE MAP GROUPING ===================== */
+  // Strip trailing "_1", "_2", "_3"... suffix to get the base map id
+  // For regions that already have no numeric suffix (echorange, crosslake, etc.)
+  // the base id equals the region id itself.
+  function getBaseId(regionId) {
+    return regionId.replace(/_\d+$/, '');
+  }
+
+  // Build a map of baseId -> array of sub-regions (sorted by tier / level_range)
+  function buildBaseMapGroups() {
+    const groups = {};
+    MAP_REGIONS.forEach(r => {
+      const base = getBaseId(r.id);
+      if (!groups[base]) groups[base] = [];
+      groups[base].push(r);
+    });
+    // Sort each group by level_range[0] ascending
+    Object.values(groups).forEach(arr =>
+      arr.sort((a, b) => a.level_range[0] - b.level_range[0])
+    );
+    return groups;
+  }
+
+  // Representative info for each base map (first sub-region's emoji/position/name)
+  function getBaseMapMeta(subRegions) {
+    const first = subRegions[0];
+    // Strip "·难度N" or "·东部/西部" suffix from name for display on map button
+    const baseName = first.name
+      .replace(/·难度\d+$/, '')
+      .replace(/·(东部|西部)$/, '');
+    // Use middle position if multiple tiers
+    const midIdx = Math.floor(subRegions.length / 2);
+    return {
+      name:  baseName || first.name,
+      emoji: first.emoji,
+      color: first.color,
+      tier:  Math.min(...subRegions.map(r => r.tier)),
+      x:     subRegions[midIdx].x,
+      y:     subRegions[midIdx].y,
+    };
+  }
+
+  // Derive a readable difficulty label for a sub-region
+  function getDiffLabel(region) {
+    // If name already contains "·难度N", extract it
+    const m = region.name.match(/难度(\d+)/);
+    if (m) return `难度 ${m[1]}`;
+    // For single-tier maps (no suffix), just use "进入"
+    return '进入';
+  }
 
   /* ===================== CANVAS ===================== */
   function initCanvas() {
@@ -108,11 +160,14 @@
   }
 
   function drawPaths() {
+    // Draw paths between unique base map positions
+    const groups = buildBaseMapGroups();
+    const baseMaps = Object.values(groups).map(subs => getBaseMapMeta(subs));
     ctx.strokeStyle = 'rgba(200, 170, 80, 0.10)';
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 8]);
-    for (let i = 0; i < MAP_REGIONS.length - 1; i++) {
-      const a = MAP_REGIONS[i], b = MAP_REGIONS[i+1];
+    for (let i = 0; i < baseMaps.length - 1; i++) {
+      const a = baseMaps[i], b = baseMaps[i+1];
       ctx.beginPath();
       ctx.moveTo(a.x * canvasW, a.y * canvasH);
       ctx.lineTo(b.x * canvasW, b.y * canvasH);
@@ -136,41 +191,100 @@
     });
   }
 
-  /* ===================== REGION BUTTONS ===================== */
+  /* ===================== REGION BUTTONS (one per base map) ===================== */
   function renderRegionButtons() {
     const container = document.getElementById('map-regions');
     container.innerHTML = '';
-    const state = GameCore.getState();
+    const state  = GameCore.getState();
+    const groups = buildBaseMapGroups();
 
-    MAP_REGIONS.forEach(region => {
+    Object.entries(groups).forEach(([baseId, subRegions]) => {
+      const meta = getBaseMapMeta(subRegions);
+
+      // A base map is "discovered" if any of its sub-regions has been discovered
+      const isDiscovered = subRegions.some(r =>
+        state.discoveredMaps && state.discoveredMaps.includes(r.id)
+      );
+
       const btn = document.createElement('button');
       btn.className = 'map-region-btn';
-      btn.dataset.tier = region.tier;
-      btn.style.left = (region.x * 100) + '%';
-      btn.style.top  = (region.y * 100) + '%';
-
-      const isDiscovered = state.discoveredMaps && state.discoveredMaps.includes(region.id);
+      btn.dataset.tier  = meta.tier;
+      btn.dataset.base  = baseId;
+      btn.style.left    = (meta.x * 100) + '%';
+      btn.style.top     = (meta.y * 100) + '%';
 
       btn.innerHTML = `
-        <span class="region-icon" style="filter:${isDiscovered ? 'none' : 'grayscale(0.6) brightness(0.6)'}">${region.emoji}</span>
-        <span class="region-label">${region.name}</span>
-        <span class="region-tier-badge">${region.tier}</span>
+        <span class="region-icon" style="filter:${isDiscovered ? 'none' : 'grayscale(0.6) brightness(0.6)'}">${meta.emoji}</span>
+        <span class="region-label">${meta.name}</span>
+        <span class="region-tier-badge">${meta.tier}</span>
       `;
 
-      btn.addEventListener('click', () => showRegionPanel(region));
+      btn.addEventListener('click', () => showBaseMapPanel(baseId, subRegions));
       container.appendChild(btn);
     });
   }
 
-  /* ===================== REGION PANEL ===================== */
-  function showRegionPanel(region) {
-    const panel    = document.getElementById('map-info-panel');
+  /* ===================== MAP PANEL (two-step: tier select → detail) ===================== */
+  function showBaseMapPanel(baseId, subRegions) {
+    const panel = document.getElementById('map-info-panel');
+    const meta  = getBaseMapMeta(subRegions);
+
+    // Set title to base map name (no tier suffix)
+    document.getElementById('map-panel-title').innerHTML =
+      `${meta.emoji} ${meta.name}`;
+
+    // Show overall level range + base description
+    const minLv = Math.min(...subRegions.map(r => r.level_range[0]));
+    const maxLv = Math.max(...subRegions.map(r => r.level_range[1]));
+    // Use the first sub-region description as base description
+    const baseDesc = subRegions[0].description;
+    document.getElementById('map-panel-desc').innerHTML =
+      `<span class="map-panel-level-badge">🗺️ 等级范围：Lv.${minLv} – ${maxLv}</span>` +
+      (subRegions.length === 1 ? `<br><span style="font-size:0.75rem;color:var(--text-muted)">${baseDesc}</span>` : '');
+
+    // Build tier buttons
+    const tierBtnsEl  = document.getElementById('map-tier-buttons');
+    const tierDetail  = document.getElementById('map-tier-detail');
+    tierBtnsEl.innerHTML = '';
+    tierDetail.classList.add('hidden');
+
+    subRegions.forEach((region, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'map-tier-btn';
+      btn.dataset.tier = region.tier;
+
+      const diffLabel = getDiffLabel(region);
+      btn.innerHTML = `
+        <span class="tier-btn-label">${diffLabel}</span>
+        <span class="tier-btn-range">Lv.${region.level_range[0]}-${region.level_range[1]}</span>
+      `;
+
+      btn.addEventListener('click', () => {
+        // Mark active
+        tierBtnsEl.querySelectorAll('.map-tier-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Update desc to this tier's description
+        document.getElementById('map-tier-desc').textContent = region.description;
+        showTierDetail(region);
+      });
+      tierBtnsEl.appendChild(btn);
+
+      // Auto-select first tier
+      if (idx === 0) {
+        btn.classList.add('active');
+        document.getElementById('map-tier-desc').textContent = region.description;
+        showTierDetail(region);
+      }
+    });
+
+    panel.classList.remove('visible');
+    requestAnimationFrame(() => panel.classList.add('visible'));
+  }
+
+  function showTierDetail(region) {
     const state    = GameCore.getState();
     const monsters = GAME_DATA.getRegionMonsters(region.id);
-
-    document.getElementById('map-panel-title').innerHTML =
-      `${region.emoji} ${region.name} <span style="font-size:0.72rem;color:var(--text-muted)">(Lv.${region.level_range[0]}-${region.level_range[1]})</span>`;
-    document.getElementById('map-panel-desc').textContent = region.description;
+    const detail   = document.getElementById('map-tier-detail');
 
     // Monster tags
     const monsterEl = document.getElementById('map-panel-monsters');
@@ -193,10 +307,7 @@
       monsterEl.appendChild(more);
     }
 
-    panel.classList.remove('visible');
-    requestAnimationFrame(() => panel.classList.add('visible'));
-
-    // Enter button
+    // Wire enter button to this specific sub-region
     const btnEnter = document.getElementById('map-panel-enter');
     btnEnter.onclick = () => {
       if (!state.playerClass) {
@@ -211,6 +322,8 @@
       closePanel();
       window.BattleSystem && window.BattleSystem.startBattle(region.id);
     };
+
+    detail.classList.remove('hidden');
   }
 
   function closePanel() {
